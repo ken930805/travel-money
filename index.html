@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>旅遊分帳 V5 (終極版)</title>
+    <title>旅遊分帳 V6 (完全體)</title>
     <style>
         /* --- 基礎樣式 --- */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; margin: 0; padding: 0; color: #333; }
@@ -11,8 +11,9 @@
         
         /* --- Header --- */
         header { background: #2196F3; color: white; padding: 15px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
-        header h2 { margin: 0; font-size: 18px; }
-        .header-btn { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5); border-radius: 4px; padding: 5px 12px; color: white; font-size: 12px; cursor: pointer; }
+        header h2 { margin: 0; font-size: 18px; display: flex; align-items: center; gap: 8px; }
+        .header-btn { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5); border-radius: 4px; padding: 5px 12px; color: white; font-size: 14px; cursor: pointer; text-decoration: none;}
+        .icon-btn { background: none; border: none; cursor: pointer; font-size: 16px; padding: 0 5px; }
         .hidden { display: none !important; }
 
         /* --- View Control --- */
@@ -21,12 +22,13 @@
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
         /* --- UI Elements --- */
-        .card { background: white; border: 1px solid #eee; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .card { background: white; border: 1px solid #eee; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); position: relative; }
         input, select, button { width: 100%; box-sizing: border-box; padding: 12px; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px; }
         button { cursor: pointer; border: none; font-weight: bold; transition: 0.2s; }
         
         .btn-primary { background: #2196F3; color: white; }
         .btn-outline { background: white; border: 1px solid #2196F3; color: #2196F3; }
+        .btn-danger { background: #ffebee; border: 1px solid #ef5350; color: #ef5350; margin-top: 10px; }
         .btn-back { background: #607d8b; color: white; margin-bottom: 15px; width: auto; padding: 8px 15px; font-size: 14px;}
 
         /* --- Lists --- */
@@ -35,27 +37,28 @@
         .bg-cash { background: #4caf50; }
         .bg-card { background: #ff9800; }
 
+        /* --- Group Card Special --- */
+        .group-card { cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .group-delete-btn { background: none; border: none; font-size: 18px; color: #999; padding: 10px; cursor: pointer; z-index: 10; }
+        .group-delete-btn:hover { color: red; }
+
         /* --- Progress Bar --- */
         .progress-bar-bg { width: 100px; height: 6px; background: #eee; border-radius: 3px; overflow: hidden; margin-top: 5px; }
         .progress-bar-fill { height: 100%; background: #4caf50; transition: width 0.3s; }
 
-        /* --- Debt Cards (總結算用) --- */
+        /* --- Debt Cards --- */
         .debt-card { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-radius: 8px; margin-bottom: 10px; color: white; }
-        .debt-owe { background-color: #ff5252; } /* 我欠人 */
-        .debt-get { background-color: #4caf50; } /* 人欠我 */
-        .debt-even { background-color: #9e9e9e; } /* 持平 */
+        .debt-owe { background-color: #ff5252; } 
+        .debt-get { background-color: #4caf50; } 
         .debt-action-btn { background: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; margin-left: 10px; }
 
-        /* --- Detail Checkbox --- */
+        /* --- Checkbox & Layout --- */
         .settle-row { display: flex; align-items: center; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid #eee; }
         .settle-check { transform: scale(1.5); width: auto; margin: 0; cursor: pointer; }
-
-        /* --- Bottom Nav --- */
         .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #ddd; display: flex; justify-content: space-around; padding: 10px 0; max-width: 600px; margin: 0 auto; z-index: 99; }
         .nav-item { border: none; background: none; font-size: 12px; color: #888; display: flex; flex-direction: column; align-items: center; }
         .nav-item.active { color: #2196F3; font-weight: bold; }
         .nav-icon { font-size: 20px; margin-bottom: 2px; }
-
         .checkbox-group { display: flex; flex-wrap: wrap; gap: 10px; }
         .checkbox-label { background: #f0f0f0; padding: 8px 12px; border-radius: 20px; display: flex; align-items: center; cursor: pointer; }
     </style>
@@ -64,23 +67,31 @@
 
 <div class="container">
     <header id="app-header">
-        <h2 id="page-title">旅費分帳</h2>
-        <button id="btn-logout" class="header-btn hidden">登出</button>
+        <h2 id="page-title">
+            <span id="title-text">旅費分帳</span>
+            <button id="btn-edit-group-name" class="icon-btn hidden" onclick="renameGroup()">✏️</button>
+        </h2>
+        <div style="display: flex; gap: 10px;">
+             <button id="btn-settings" class="header-btn hidden">⚙️ 設定</button>
+            <button id="btn-logout" class="header-btn hidden">登出</button>
+        </div>
     </header>
 
     <div id="view-login" class="view-section active">
         <div style="text-align: center; margin-top: 50px;">
             <h1>✈️</h1>
-            <h2>分帳神器 V5</h2>
+            <h2>分帳神器 V6</h2>
             <button id="btn-login" class="btn-primary">Google 登入</button>
         </div>
     </div>
 
     <div id="view-profile" class="view-section">
         <div class="card">
-            <h4>👋 設定暱稱</h4>
+            <h4>👋 設定個人暱稱</h4>
+            <p style="color:#666; font-size:14px;">這是顯示在分帳表單上的名字</p>
             <input type="text" id="profile-name-input" placeholder="例如：帥氣小明">
-            <button id="btn-save-profile" class="btn-primary">儲存</button>
+            <button id="btn-save-profile" class="btn-primary">儲存變更</button>
+            <button onclick="showView('view-groups')" class="btn-outline" style="margin-top:10px;">取消返回</button>
         </div>
     </div>
 
@@ -129,7 +140,7 @@
 
         <div id="tab-unsettled" class="tab-content" style="display: none;">
             <div class="card" style="background:#fff3e0; border:1px solid #ffe0b2; padding:10px;">
-                <small>ℹ️ 點擊項目可勾選個別還款狀況</small>
+                <small>ℹ️ 點擊項目可編輯還款或刪除</small>
             </div>
             <div id="unsettled-list"></div>
         </div>
@@ -137,7 +148,7 @@
         <div id="tab-matrix" class="tab-content" style="display: none;">
             <div style="text-align: center; margin-bottom: 15px;">
                 <h3>結算中心</h3>
-                <p style="color:#666; font-size:13px;">自動計算互相抵銷後的金額<br>點擊按鈕可一次結清所有相關帳目</p>
+                <p style="color:#666; font-size:13px;">自動計算互相抵銷後的金額</p>
             </div>
             <div id="matrix-list"></div>
         </div>
@@ -176,6 +187,8 @@
             <h4>個別結算</h4>
             <div id="detail-members-list"></div>
         </div>
+        
+        <button onclick="deleteCurrentExpense()" class="btn-danger">🗑️ 刪除這筆帳目</button>
     </div>
 
 </div>
@@ -183,18 +196,19 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove, onSnapshot, query, where, orderBy, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, doc, getDoc, setDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, onSnapshot, query, where, orderBy, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     // ⚠️⚠️⚠️ 請在此替換你的 Firebase Config ⚠️⚠️⚠️
     const firebaseConfig = {
-        apiKey: "AIzaSyDQFDcA3OB0y-KZCDf9QzQLFZm8w3oVqyg",
-        authDomain: "trip-web-82474.firebaseapp.com",
-        projectId: "trip-web-82474",
-        storageBucket: "trip-web-82474.firebasestorage.app",
-        messagingSenderId: "900625161560",
-        appId: "1:900625161560:web:370f4dcb647f44fc1c992d",
-        measurementId: "G-PHVPTW4CPL"
+            apiKey: "AIzaSyDQFDcA3OB0y-KZCDf9QzQLFZm8w3oVqyg",
+            authDomain: "trip-web-82474.firebaseapp.com",
+            projectId: "trip-web-82474",
+            storageBucket: "trip-web-82474.firebasestorage.app",
+            messagingSenderId: "900625161560",
+            appId: "1:900625161560:web:370f4dcb647f44fc1c992d",
+            measurementId: "G-PHVPTW4CPL"
         };
+
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
@@ -204,11 +218,17 @@
     let currentGroupId = null;
     let currentGroupMembers = [];
     let currentDetailDocId = null; 
-    let allExpensesCache = []; // 用於計算矩陣
+    let allExpensesCache = [];
 
-    // --- Logout ---
+    // --- Logout & Settings ---
     document.getElementById('btn-logout').addEventListener('click', () => {
         if(confirm('確定要登出嗎？')) signOut(auth).then(() => location.reload());
+    });
+    
+    // 進入設定頁面
+    document.getElementById('btn-settings').addEventListener('click', () => {
+        document.getElementById('profile-name-input').value = currentUser.displayName || '';
+        showView('view-profile');
     });
 
     // --- Navigation ---
@@ -216,8 +236,18 @@
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
         document.getElementById(viewId).classList.add('active');
         
-        const btnLogout = document.getElementById('btn-logout');
-        btnLogout.classList.toggle('hidden', viewId === 'view-login');
+        // Header 按鈕顯示控制
+        const isLogin = (viewId === 'view-login');
+        const isDash = (viewId === 'view-dashboard');
+        
+        document.getElementById('btn-logout').classList.toggle('hidden', isLogin);
+        document.getElementById('btn-settings').classList.toggle('hidden', isLogin || isDash); // 在群組內不顯示設定，保持簡潔
+        
+        // 群組更名按鈕只有在 dashboard 顯示
+        document.getElementById('btn-edit-group-name').classList.toggle('hidden', !isDash);
+
+        // 標題還原
+        if(!isDash) document.getElementById('title-text').innerText = '旅費分帳';
 
         const bottomNav = document.querySelector('.bottom-nav');
         if (viewId === 'view-detail') bottomNav.style.display = 'none';
@@ -229,8 +259,6 @@
         document.getElementById(tabId).style.display = 'block';
         document.querySelectorAll('.bottom-nav .nav-item').forEach(btn => btn.classList.remove('active'));
         if(btnElement) btnElement.classList.add('active');
-
-        // 如果切換到結算頁，重新計算
         if(tabId === 'tab-matrix') calculateMatrix();
     };
 
@@ -252,11 +280,15 @@
         } else { showView('view-login'); }
     });
 
+    // --- Save Profile (功能 1: 更改暱稱) ---
     document.getElementById('btn-save-profile').addEventListener('click', async () => {
         const name = document.getElementById('profile-name-input').value.trim();
         if (!name) return;
         await setDoc(doc(db, "users", currentUser.uid), { displayName: name, email: currentUser.email }, { merge: true });
-        currentUser.displayName = name;
+        
+        currentUser.displayName = name; // 更新本地
+        alert('暱稱更新成功！');
+        
         loadMyGroups();
         showView('view-groups');
     });
@@ -265,7 +297,7 @@
     document.getElementById('btn-create-group').addEventListener('click', async () => {
         const name = document.getElementById('new-group-name').value.trim();
         if (!name) return;
-        const docRef = await addDoc(collection(db, "groups"), {
+        await addDoc(collection(db, "groups"), {
             name: name,
             members: [{ uid: currentUser.uid, name: currentUser.displayName }],
             createdAt: new Date()
@@ -287,40 +319,73 @@
         } else { alert('找不到群組'); }
     });
 
+    // --- 載入群組列表 (含 功能 4: 刪除群組) ---
     async function loadMyGroups() {
         const list = document.getElementById('my-groups-list');
         list.innerHTML = '載入中...';
         const q = query(collection(db, "groups"), orderBy("createdAt", "desc"));
         const querySnapshot = await getDocs(q);
         list.innerHTML = '';
-        querySnapshot.forEach((doc) => {
-            const data = doc.data();
+        
+        querySnapshot.forEach((docSnap) => {
+            const data = docSnap.data();
             if (data.members.some(m => m.uid === currentUser.uid)) {
                 const div = document.createElement('div');
-                div.className = 'card';
-                div.innerHTML = `<strong>${data.name}</strong> <br> <small>ID: ${doc.id}</small>`;
-                div.onclick = () => enterGroup(doc.id, data.name);
+                div.className = 'card group-card';
+                div.onclick = () => enterGroup(docSnap.id, data.name); // 點擊卡片進入
+                
+                div.innerHTML = `
+                    <div>
+                        <strong>${data.name}</strong> <br> <small>ID: ${docSnap.id}</small>
+                    </div>
+                `;
+
+                // 🗑️ 刪除群組按鈕 (阻止冒泡以免觸發進入群組)
+                const delBtn = document.createElement('button');
+                delBtn.className = 'group-delete-btn';
+                delBtn.innerText = '🗑️';
+                delBtn.onclick = (e) => {
+                    e.stopPropagation(); // 關鍵：阻止點擊事件傳遞
+                    deleteGroup(docSnap.id, data.name);
+                };
+                
+                div.appendChild(delBtn);
                 list.appendChild(div);
             }
         });
     }
 
+    window.deleteGroup = async (groupId, groupName) => {
+        const confirmName = prompt(`⚠️ 危險動作！\n這將刪除整個群組，所有人的資料都會消失。\n請輸入群組名稱 "${groupName}" 以確認刪除：`);
+        if (confirmName === groupName) {
+            await deleteDoc(doc(db, "groups", groupId));
+            alert('群組已刪除');
+            loadMyGroups();
+        } else if (confirmName !== null) {
+            alert('名稱輸入錯誤，取消刪除');
+        }
+    };
+
     // --- Enter Group ---
     function enterGroup(groupId, groupName) {
         currentGroupId = groupId;
-        document.getElementById('page-title').innerText = groupName;
+        document.getElementById('title-text').innerText = groupName; // 設定標題
         showView('view-dashboard');
         switchTab('tab-add');
 
-        // Listen Members
         onSnapshot(doc(db, "groups", groupId), (docSnap) => {
             if(docSnap.exists()) {
-                currentGroupMembers = docSnap.data().members;
+                const data = docSnap.data();
+                currentGroupMembers = data.members;
+                document.getElementById('title-text').innerText = data.name; // 即時更新標題
                 renderExpenseForm(currentGroupMembers);
+            } else {
+                // 如果群組被刪除了
+                alert('此群組已被刪除');
+                goBackToGroups();
             }
         });
 
-        // Listen Expenses
         const expenseQ = query(collection(db, "expenses"), where("groupId", "==", groupId), orderBy("timestamp", "desc"));
         onSnapshot(expenseQ, (snapshot) => {
             allExpensesCache = [];
@@ -334,13 +399,12 @@
             snapshot.forEach(docSnap => {
                 const data = docSnap.data();
                 data.id = docSnap.id;
-                allExpensesCache.push(data); // 存起來給結算用
+                allExpensesCache.push(data);
 
                 const settledMembers = data.settledMembers || [];
                 const totalDebtors = data.splitBy.length;
                 const isFullySettled = (settledMembers.length === totalDebtors && totalDebtors > 0);
 
-                // Render List Item
                 const payerName = currentGroupMembers.find(m => m.uid === data.payer)?.name || '未知';
                 const methodBadge = data.method === 'card' ? '<span class="badge bg-card">卡</span>' : '<span class="badge bg-cash">現</span>';
                 const dateStr = data.timestamp?.seconds ? new Date(data.timestamp.seconds * 1000).toLocaleDateString() : '';
@@ -371,11 +435,17 @@
             });
 
             if (unsettledCount === 0) unsettledList.innerHTML = '<p style="text-align:center;color:#999;margin-top:20px">🎉 沒有未結清帳目</p>';
-            
-            // 如果在結算頁，即時刷新
             if(document.getElementById('tab-matrix').style.display === 'block') calculateMatrix();
         });
     }
+
+    // --- 功能 2: 變更群組名稱 ---
+    window.renameGroup = async () => {
+        const newName = prompt("請輸入新的群組名稱：", document.getElementById('title-text').innerText);
+        if (newName && newName.trim() !== "") {
+            await updateDoc(doc(db, "groups", currentGroupId), { name: newName });
+        }
+    };
 
     function renderExpenseForm(members) {
         const payerSelect = document.getElementById('payer-select');
@@ -396,7 +466,6 @@
         });
     }
 
-    // --- Submit Expense (Bug Fix: Auto Settle Payer) ---
     document.getElementById('btn-submit-expense').addEventListener('click', async () => {
         const amount = Number(document.getElementById('expense-amount').value);
         const note = document.getElementById('expense-note').value;
@@ -407,16 +476,13 @@
 
         if(!amount || !note || splitBy.length === 0) return alert('請填寫完整');
 
-        // 🌟 修正點：如果付款人包含在分攤名單內，初始 settledMembers 就應該包含他
         let initialSettled = [];
-        if (splitBy.includes(payer)) {
-            initialSettled.push(payer);
-        }
+        if (splitBy.includes(payer)) initialSettled.push(payer);
 
         await addDoc(collection(db, "expenses"), {
             groupId: currentGroupId,
             amount, note, method, payer, splitBy,
-            settledMembers: initialSettled, // 使用修正後的初始值
+            settledMembers: initialSettled,
             timestamp: new Date()
         });
         
@@ -425,12 +491,20 @@
         alert('記帳成功！');
     });
 
-    // --- Detail View ---
+    // --- Detail View & 功能 3: 刪除帳目 ---
     window.openDetail = async (docId) => {
         currentDetailDocId = docId;
         showView('view-detail');
         const docSnap = await getDoc(doc(db, "expenses", docId));
         if (docSnap.exists()) renderDetailView({ ...docSnap.data(), id: docSnap.id });
+    };
+
+    window.deleteCurrentExpense = async () => {
+        if(confirm('確定要刪除這筆帳目嗎？此動作無法復原。')) {
+            await deleteDoc(doc(db, "expenses", currentDetailDocId));
+            alert('已刪除');
+            closeDetail();
+        }
     };
 
     function renderDetailView(data) {
@@ -450,7 +524,6 @@
             const isPayer = (memberUid === data.payer);
 
             let checkboxHtml = '';
-            // 付款人自己顯示為「不需還款」
             if (isPayer) checkboxHtml = `<span style="font-size:12px; color:#888;">付款人</span>`;
             else checkboxHtml = `<input type="checkbox" class="settle-check" onchange="toggleMemberSettlement('${data.id}', '${memberUid}', this.checked)" ${isSettled ? 'checked' : ''}>`;
 
@@ -473,12 +546,11 @@
         else await updateDoc(expRef, { settledMembers: arrayRemove(memberUid) });
     };
 
-    // --- 🌟 Matrix Calculation (總結算邏輯) ---
+    // --- Matrix Calculation ---
     function calculateMatrix() {
         let debts = {};
         currentGroupMembers.forEach(m => debts[m.uid] = {});
 
-        // 1. 遍歷所有帳目，計算誰欠誰多少 (排除已在細項勾選結清的人)
         allExpensesCache.forEach(exp => {
             const splitCount = exp.splitBy.length;
             const perPersonShare = exp.amount / splitCount;
@@ -486,7 +558,6 @@
             const settledList = exp.settledMembers || [];
 
             exp.splitBy.forEach(debtor => {
-                // 只有「不是付款人」且「還沒在細項裡勾選」的人，才算入總債務
                 if (debtor !== payer && !settledList.includes(debtor)) {
                     if (!debts[debtor][payer]) debts[debtor][payer] = 0;
                     debts[debtor][payer] += perPersonShare;
@@ -494,7 +565,6 @@
             });
         });
 
-        // 2. 顯示
         const list = document.getElementById('matrix-list');
         list.innerHTML = '';
         const myUid = currentUser.uid;
@@ -502,12 +572,10 @@
         currentGroupMembers.forEach(member => {
             if (member.uid === myUid) return;
 
-            // 計算互欠
             let iOweHim = debts[myUid][member.uid] || 0;
             let heOwesMe = debts[member.uid] ? (debts[member.uid][myUid] || 0) : 0;
             let netAmount = iOweHim - heOwesMe;
 
-            // 如果互不相欠，不顯示卡片
             if (Math.abs(netAmount) < 1) return;
 
             let cardClass = 'debt-even';
@@ -521,13 +589,13 @@
                 text = `你欠 ${member.name}`;
                 btnText = `還款 $${Math.round(netAmount)}`;
                 btnAction = 'pay';
-                btnColor = '#ff5252'; // 紅色
+                btnColor = '#ff5252';
             } else {
                 cardClass = 'debt-get';
                 text = `${member.name} 欠你`;
                 btnText = `收款 $${Math.round(Math.abs(netAmount))}`;
                 btnAction = 'receive';
-                btnColor = '#4caf50'; // 綠色
+                btnColor = '#4caf50';
             }
 
             const div = document.createElement('div');
@@ -549,7 +617,6 @@
         }
     }
 
-    // --- 🌟 Total Settlement Logic (一次結清) ---
     window.settleTotal = async (targetUid, type) => {
         if (!confirm('確定要進行結清嗎？這將會把你們之間「所有未結清」的細項全部勾選起來。')) return;
 
@@ -561,27 +628,22 @@
             const expRef = doc(db, "expenses", exp.id);
             const settledList = exp.settledMembers || [];
 
-            // 情境 1: 我還對方錢 (把 "我" 加進 settled)
-            // 條件：這筆是對方付的 AND 我有分攤 AND 我還沒還
             if (type === 'pay') {
                 if (exp.payer === targetUid && exp.splitBy.includes(myUid) && !settledList.includes(myUid)) {
                     batch.update(expRef, { settledMembers: arrayUnion(myUid) });
                     count++;
                 }
-                // 同時也要處理抵銷的部分：如果有一筆是我付的，對方欠我，也要把 "對方" 加進 settled (因為是 net settlement)
                 if (exp.payer === myUid && exp.splitBy.includes(targetUid) && !settledList.includes(targetUid)) {
                      batch.update(expRef, { settledMembers: arrayUnion(targetUid) });
                      count++;
                 }
             }
             
-            // 情境 2: 對方還我錢 (邏輯同上，只是發起方不同)
             if (type === 'receive') {
                 if (exp.payer === myUid && exp.splitBy.includes(targetUid) && !settledList.includes(targetUid)) {
                     batch.update(expRef, { settledMembers: arrayUnion(targetUid) });
                     count++;
                 }
-                // 抵銷部分
                 if (exp.payer === targetUid && exp.splitBy.includes(myUid) && !settledList.includes(myUid)) {
                     batch.update(expRef, { settledMembers: arrayUnion(myUid) });
                     count++;
@@ -596,7 +658,6 @@
             alert('系統忙碌中，請稍後再試');
         }
     };
-
 </script>
 </body>
 </html>
