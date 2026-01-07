@@ -135,17 +135,14 @@
         </div>
 
         <div class="bottom-nav">
-            <button class="nav-item active" onclick="switchTab('tab-add')">
+            <button class="nav-item active" onclick="switchTab('tab-add', this)">
                 <span class="nav-icon">➕</span>記帳
             </button>
-            <button class="nav-item" onclick="switchTab('tab-unsettled')">
+            <button class="nav-item" onclick="switchTab('tab-unsettled', this)">
                 <span class="nav-icon">⚠️</span>未結清
             </button>
-            <button class="nav-item" onclick="switchTab('tab-history')">
+            <button class="nav-item" onclick="switchTab('tab-history', this)">
                 <span class="nav-icon">📜</span>歷史
-            </button>
-            <button class="nav-item" onclick="goBackToGroups()">
-                <span class="nav-icon">🔙</span>換群組
             </button>
         </div>
     </div>
@@ -192,15 +189,26 @@
         };
         document.getElementById('page-title').innerText = titleMap[viewId] || '旅費分帳';
     }
-
+   
     // --- Tab 控制 (Dashboard 內部分頁) ---
-    window.switchTab = (tabId) => {
+    window.switchTab = (tabId, btnElement) => {
+        // 1. 切換內容顯示
         document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
         document.getElementById(tabId).style.display = 'block';
         
-        // 更新按鈕狀態
+        // 2. 更新按鈕亮燈
         document.querySelectorAll('.bottom-nav .nav-item').forEach(btn => btn.classList.remove('active'));
-        event.currentTarget.classList.add('active'); // 簡單處理
+        
+        if (btnElement) {
+            // 如果是滑鼠點擊，直接亮起該按鈕
+            btnElement.classList.add('active');
+        } else {
+            // 如果是程式自動切換 (例如剛進群組)，根據 ID 自動找按鈕亮燈
+            const map = { 'tab-add': 0, 'tab-unsettled': 1, 'tab-history': 2 };
+            const index = map[tabId];
+            const btns = document.querySelectorAll('.bottom-nav .nav-item');
+            if (btns[index]) btns[index].classList.add('active');
+        }
     };
 
     window.goBackToGroups = () => {
