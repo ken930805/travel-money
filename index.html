@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>旅遊分帳神器 V3 (結算版)</title>
+    <title>旅遊分帳 V4 (細項結算版)</title>
     <style>
         /* --- 基礎樣式 --- */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; margin: 0; padding: 0; color: #333; }
@@ -12,7 +12,8 @@
         /* --- 導航列 --- */
         header { background: #2196F3; color: white; padding: 15px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
         header h2 { margin: 0; font-size: 18px; }
-        .header-btn { background: none; border: none; color: white; font-size: 14px; cursor: pointer; }
+        .header-btn { background: none; border: 1px solid white; border-radius: 4px; padding: 5px 10px; color: white; font-size: 12px; cursor: pointer; }
+        .hidden { display: none !important; }
 
         /* --- 頁面控制 --- */
         .view-section { display: none; padding: 20px; animation: fadeIn 0.3s; }
@@ -21,31 +22,29 @@
 
         /* --- 卡片與元件 --- */
         .card { background: white; border: 1px solid #eee; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .card h4 { margin-top: 0; margin-bottom: 10px; color: #555; }
         
         input, select, button { width: 100%; box-sizing: border-box; padding: 12px; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px; }
         button { cursor: pointer; border: none; font-weight: bold; transition: 0.2s; }
         .btn-primary { background: #2196F3; color: white; }
-        .btn-danger { background: #ff5722; color: white; }
-        .btn-success { background: #4caf50; color: white; }
-        .btn-outline { background: transparent; border: 1px solid #2196F3; color: #2196F3; }
-
+        .btn-back { background: #607d8b; color: white; margin-bottom: 15px; width: auto; padding: 8px 15px; font-size: 14px;}
+        
         /* --- 列表樣式 --- */
-        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
-        .list-item:last-child { border-bottom: none; }
+        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
+        .list-item:hover { background-color: #fafafa; }
         .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; color: white; margin-left: 5px; }
         .bg-cash { background: #4caf50; }
         .bg-card { background: #ff9800; }
 
-        /* --- 結算樣式 (新) --- */
-        .debt-card { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-radius: 8px; margin-bottom: 10px; color: white; }
-        .debt-owe { background-color: #ff5252; } /* 我欠人 */
-        .debt-get { background-color: #4caf50; } /* 人欠我 */
-        .debt-even { background-color: #9e9e9e; } /* 持平 */
-        .debt-amount { font-size: 20px; font-weight: bold; }
+        /* --- 進度條 (顯示還款狀況) --- */
+        .progress-bar-bg { width: 100px; height: 6px; background: #eee; border-radius: 3px; overflow: hidden; margin-top: 5px; }
+        .progress-bar-fill { height: 100%; background: #4caf50; transition: width 0.3s; }
+
+        /* --- 詳情頁勾選樣式 --- */
+        .settle-row { display: flex; align-items: center; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid #eee; }
+        .settle-check { transform: scale(1.5); width: auto; margin: 0; cursor: pointer; }
 
         /* --- 底部導航 --- */
-        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #ddd; display: flex; justify-content: space-around; padding: 10px 0; max-width: 600px; margin: 0 auto; }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #ddd; display: flex; justify-content: space-around; padding: 10px 0; max-width: 600px; margin: 0 auto; z-index: 99; }
         .nav-item { border: none; background: none; font-size: 12px; color: #888; display: flex; flex-direction: column; align-items: center; }
         .nav-item.active { color: #2196F3; font-weight: bold; }
         .nav-icon { font-size: 20px; margin-bottom: 2px; }
@@ -53,7 +52,6 @@
         .checkbox-group { display: flex; flex-wrap: wrap; gap: 10px; }
         .checkbox-label { background: #f0f0f0; padding: 8px 12px; border-radius: 20px; display: flex; align-items: center; cursor: pointer; }
         .checkbox-label input { width: auto; margin: 0 5px 0 0; }
-        .empty-state { text-align: center; color: #999; margin-top: 30px; }
     </style>
 </head>
 <body>
@@ -61,13 +59,14 @@
 <div class="container">
     <header id="app-header">
         <h2 id="page-title">旅費分帳</h2>
+        <button id="btn-logout" class="header-btn hidden">登出</button>
     </header>
 
     <div id="view-login" class="view-section active">
         <div style="text-align: center; margin-top: 50px;">
             <h1>✈️</h1>
-            <h2>歡迎使用分帳神器 V3</h2>
-            <button id="btn-login" class="btn-primary">Google 帳號登入</button>
+            <h2>分帳神器 V4</h2>
+            <button id="btn-login" class="btn-primary">Google 登入</button>
         </div>
     </div>
 
@@ -75,7 +74,7 @@
         <div class="card">
             <h4>👋 設定暱稱</h4>
             <input type="text" id="profile-name-input" placeholder="例如：帥氣小明">
-            <button id="btn-save-profile" class="btn-primary">儲存並開始</button>
+            <button id="btn-save-profile" class="btn-primary">儲存</button>
         </div>
     </div>
 
@@ -88,7 +87,7 @@
         <div class="card">
             <h4>加入行程</h4>
             <input type="text" id="join-group-id" placeholder="群組 ID">
-            <button id="btn-join-group" class="btn-outline">加入</button>
+            <button id="btn-join-group" class="btn-outline" style="background: white;">加入</button>
         </div>
         <h4 style="margin: 20px 0 10px;">我的群組</h4>
         <div id="my-groups-list"></div>
@@ -120,28 +119,28 @@
                 <br>
                 <button id="btn-submit-expense" class="btn-primary">確認記帳</button>
             </div>
-            
-            <div class="card">
-                <h4>📜 最近帳目 (全體)</h4>
-                <div id="recent-list"></div>
-            </div>
         </div>
 
-        <div id="tab-settle" class="tab-content" style="display: none;">
-            <div style="text-align: center; margin-bottom: 20px;">
-                <h3>結算中心</h3>
-                <p style="color: #666; font-size: 14px;">系統會自動計算互相抵銷後的金額<br>點擊下方卡片即可進行「結清」</p>
+        <div id="tab-unsettled" class="tab-content" style="display: none;">
+            <div class="card" style="background:#fff3e0; border:1px solid #ffe0b2;">
+                <small>ℹ️ 點擊帳目可以勾選誰已經還錢了</small>
             </div>
-            <div id="settlement-list">
-                </div>
+            <div id="unsettled-list"></div>
+        </div>
+
+        <div id="tab-history" class="tab-content" style="display: none;">
+            <div id="history-list"></div>
         </div>
 
         <div class="bottom-nav">
             <button class="nav-item active" onclick="switchTab('tab-add', this)">
                 <span class="nav-icon">➕</span>記帳
             </button>
-            <button class="nav-item" onclick="switchTab('tab-settle', this)">
-                <span class="nav-icon">💰</span>結算
+            <button class="nav-item" onclick="switchTab('tab-unsettled', this)">
+                <span class="nav-icon">⚠️</span>未結清
+            </button>
+            <button class="nav-item" onclick="switchTab('tab-history', this)">
+                <span class="nav-icon">📜</span>歷史
             </button>
             <button class="nav-item" onclick="goBackToGroups()">
                 <span class="nav-icon">🔙</span>換團
@@ -149,24 +148,41 @@
         </div>
     </div>
 
+    <div id="view-detail" class="view-section">
+        <button onclick="closeDetail()" class="btn-back">⬅ 返回列表</button>
+        
+        <div class="card">
+            <h2 id="detail-amount" style="color:#2196F3; margin:0;">$0</h2>
+            <h4 id="detail-note" style="margin:5px 0;">項目</h4>
+            <p id="detail-payer" style="color:#666; font-size:14px;">由...支付</p>
+        </div>
+
+        <div class="card">
+            <h4>結清狀態</h4>
+            <p style="font-size:13px; color:#888;">勾選代表該成員「已經把錢還給付款人」。當所有人勾選後，此筆帳目會移至歷史區。</p>
+            <hr>
+            <div id="detail-members-list">
+                </div>
+        </div>
+    </div>
+
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, doc, getDoc, setDoc, updateDoc, arrayUnion, onSnapshot, query, where, orderBy, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getFirestore, collection, addDoc, doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove, onSnapshot, query, where, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     // ⚠️⚠️⚠️ 請在此替換你的 Firebase Config ⚠️⚠️⚠️
     const firebaseConfig = {
-        apiKey: "AIzaSyDQFDcA3OB0y-KZCDf9QzQLFZm8w3oVqyg",
-        authDomain: "trip-web-82474.firebaseapp.com",
-        projectId: "trip-web-82474",
-        storageBucket: "trip-web-82474.firebasestorage.app",
-        messagingSenderId: "900625161560",
-        appId: "1:900625161560:web:370f4dcb647f44fc1c992d",
-        measurementId: "G-PHVPTW4CPL"
+            apiKey: "AIzaSyDQFDcA3OB0y-KZCDf9QzQLFZm8w3oVqyg",
+            authDomain: "trip-web-82474.firebaseapp.com",
+            projectId: "trip-web-82474",
+            storageBucket: "trip-web-82474.firebasestorage.app",
+            messagingSenderId: "900625161560",
+            appId: "1:900625161560:web:370f4dcb647f44fc1c992d",
+            measurementId: "G-PHVPTW4CPL"
         };
-
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
@@ -175,12 +191,31 @@
     let currentUser = null;
     let currentGroupId = null;
     let currentGroupMembers = [];
-    let allExpensesCache = []; // 用來暫存資料以計算債務
+    let currentDetailDocId = null; // 記錄目前正在查看哪一筆帳
+
+    // --- 登出功能 ---
+    document.getElementById('btn-logout').addEventListener('click', () => {
+        if(confirm('確定要登出嗎？')) {
+            signOut(auth).then(() => {
+                location.reload();
+            });
+        }
+    });
 
     // --- 介面切換 ---
     function showView(viewId) {
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
         document.getElementById(viewId).classList.add('active');
+        
+        // 控制登出按鈕顯示
+        const btnLogout = document.getElementById('btn-logout');
+        if (viewId === 'view-login') btnLogout.classList.add('hidden');
+        else btnLogout.classList.remove('hidden');
+
+        // 如果進入詳情頁，隱藏底部導航
+        const bottomNav = document.querySelector('.bottom-nav');
+        if (viewId === 'view-detail') bottomNav.style.display = 'none';
+        else if (viewId === 'view-dashboard') bottomNav.style.display = 'flex';
     }
 
     window.switchTab = (tabId, btnElement) => {
@@ -188,14 +223,16 @@
         document.getElementById(tabId).style.display = 'block';
         document.querySelectorAll('.bottom-nav .nav-item').forEach(btn => btn.classList.remove('active'));
         if(btnElement) btnElement.classList.add('active');
-        
-        // 如果切換到結算頁面，重新計算
-        if(tabId === 'tab-settle') calculateDebts();
     };
 
     window.goBackToGroups = () => {
         currentGroupId = null;
         showView('view-groups');
+    };
+
+    window.closeDetail = () => {
+        currentDetailDocId = null;
+        showView('view-dashboard');
     };
 
     // --- 登入與初始化 ---
@@ -273,12 +310,12 @@
         });
     }
 
-    // --- 進入群組邏輯 ---
+    // --- 進入群組 ---
     function enterGroup(groupId, groupName) {
         currentGroupId = groupId;
         document.getElementById('page-title').innerText = groupName;
         showView('view-dashboard');
-        switchTab('tab-add');
+        switchTab('tab-add'); // 預設進記帳
 
         // 1. 監聽成員
         onSnapshot(doc(db, "groups", groupId), (docSnap) => {
@@ -288,45 +325,64 @@
             }
         });
 
-        // 2. 監聽帳目 (請確保已建立索引)
+        // 2. 監聽帳目 (注意：請確保已建立索引)
         const expenseQ = query(collection(db, "expenses"), where("groupId", "==", groupId), orderBy("timestamp", "desc"));
         onSnapshot(expenseQ, (snapshot) => {
-            allExpensesCache = []; // 清空快取
-            const list = document.getElementById('recent-list');
-            list.innerHTML = '';
+            const unsettledList = document.getElementById('unsettled-list');
+            const historyList = document.getElementById('history-list');
+            
+            unsettledList.innerHTML = '';
+            historyList.innerHTML = '';
+            let unsettledCount = 0;
 
             snapshot.forEach(docSnap => {
                 const data = docSnap.data();
-                data.id = docSnap.id; // 補上 ID 方便操作
-                allExpensesCache.push(data); // 存入快取供結算使用
+                data.id = docSnap.id;
+                
+                // 判斷是否全部結清
+                // 分帳人數 (splitBy.length) == 已結清人數 (settledMembers.length)
+                const settledMembers = data.settledMembers || [];
+                const totalDebtors = data.splitBy.length;
+                const isFullySettled = (settledMembers.length === totalDebtors && totalDebtors > 0);
 
-                // 顯示列表
+                // 產生卡片 HTML
                 const payerName = currentGroupMembers.find(m => m.uid === data.payer)?.name || '未知';
+                const methodBadge = data.method === 'card' ? '<span class="badge bg-card">卡</span>' : '<span class="badge bg-cash">現</span>';
                 const dateStr = data.timestamp?.seconds ? new Date(data.timestamp.seconds * 1000).toLocaleDateString() : '';
                 
-                // 檢查我自己是否在這筆帳單且已結清
-                const amIInvolved = data.splitBy.includes(currentUser.uid);
-                const amISettled = data.settledMembers ? data.settledMembers.includes(currentUser.uid) : false;
-                
-                let statusHtml = '';
-                if (amIInvolved && data.payer !== currentUser.uid) {
-                    statusHtml = amISettled ? '<span style="color:green; font-size:12px;">(已付)</span>' : '<span style="color:red; font-size:12px;">(未付)</span>';
+                // 進度條計算
+                const progressPercent = totalDebtors > 0 ? (settledMembers.length / totalDebtors) * 100 : 0;
+
+                const itemHtml = `
+                    <div class="list-item" onclick="openDetail('${data.id}')">
+                        <div style="flex:1">
+                            <div style="font-weight:bold;">${data.note} ${methodBadge}</div>
+                            <div style="font-size:12px; color:#666;">${payerName} 付款 (${dateStr})</div>
+                            ${!isFullySettled ? `
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" style="width: ${progressPercent}%"></div>
+                            </div>
+                            <div style="font-size:10px; color:#888;">已結清 ${settledMembers.length}/${totalDebtors} 人</div>
+                            ` : ''}
+                        </div>
+                        <div style="font-weight:bold; color: #2196F3;">$${data.amount}</div>
+                    </div>
+                `;
+
+                if (isFullySettled) {
+                    historyList.innerHTML += itemHtml;
+                } else {
+                    unsettledList.innerHTML += itemHtml;
+                    unsettledCount++;
                 }
 
-                list.innerHTML += `
-                    <div class="list-item">
-                        <div>
-                            <strong>${data.note}</strong> ${statusHtml} <br>
-                            <small>${payerName} 先付 $${data.amount}</small>
-                        </div>
-                        <div style="font-weight:bold;">$${data.amount}</div>
-                    </div>`;
+                // 如果目前正在看詳情頁，且這筆資料更新了，即時刷新詳情頁
+                if (currentDetailDocId === data.id) {
+                    renderDetailView(data);
+                }
             });
-            
-            // 如果當前在結算頁，即時更新數據
-            if(document.getElementById('tab-settle').style.display === 'block') {
-                calculateDebts();
-            }
+
+            if (unsettledCount === 0) unsettledList.innerHTML = '<p class="empty-state">🎉 目前沒有未結清的帳目</p>';
         });
     }
 
@@ -349,7 +405,7 @@
         });
     }
 
-    // --- 記帳邏輯 (資料結構更新) ---
+    // --- 記帳 ---
     document.getElementById('btn-submit-expense').addEventListener('click', async () => {
         const amount = Number(document.getElementById('expense-amount').value);
         const note = document.getElementById('expense-note').value;
@@ -363,7 +419,7 @@
         await addDoc(collection(db, "expenses"), {
             groupId: currentGroupId,
             amount, note, method, payer, splitBy,
-            settledMembers: [], // 🌟 關鍵改變：用陣列存誰還錢了
+            settledMembers: [], 
             timestamp: new Date()
         });
         
@@ -372,114 +428,75 @@
         alert('記帳成功！');
     });
 
-    // --- 🌟 核心演算法：計算債務與結清 ---
-    function calculateDebts() {
-        // 1. 建立債務矩陣 { 'uidA': { 'uidB': 100 } } => A 欠 B 100 元
-        let debts = {};
+    // --- 🌟 單筆詳情與個別結算邏輯 ---
+    window.openDetail = async (docId) => {
+        currentDetailDocId = docId;
+        showView('view-detail');
+        // 先讀取一次資料，之後靠 onSnapshot 更新
+        const docSnap = await getDoc(doc(db, "expenses", docId));
+        if (docSnap.exists()) {
+            renderDetailView({ ...docSnap.data(), id: docSnap.id });
+        }
+    };
 
-        // 初始化
-        currentGroupMembers.forEach(m => debts[m.uid] = {});
+    function renderDetailView(data) {
+        const payerName = currentGroupMembers.find(m => m.uid === data.payer)?.name || '未知';
+        
+        document.getElementById('detail-amount').innerText = `$${data.amount}`;
+        document.getElementById('detail-note').innerText = data.note;
+        document.getElementById('detail-payer').innerText = `由 ${payerName} 先墊付`;
 
-        // 2. 遍歷所有帳目
-        allExpensesCache.forEach(exp => {
-            const splitCount = exp.splitBy.length;
-            const perPersonShare = exp.amount / splitCount;
-            const payer = exp.payer;
-            const settledList = exp.settledMembers || []; // 防呆
+        const listContainer = document.getElementById('detail-members-list');
+        listContainer.innerHTML = '';
+        
+        // 分攤金額計算
+        const share = Math.round(data.amount / data.splitBy.length);
+        const settledSet = new Set(data.settledMembers || []);
 
-            exp.splitBy.forEach(debtor => {
-                // 如果是自己付的，或者這個人已經還錢了，就跳過
-                if (debtor === payer || settledList.includes(debtor)) return;
+        data.splitBy.forEach(memberUid => {
+            const memberName = currentGroupMembers.find(m => m.uid === memberUid)?.name || '未知';
+            const isSettled = settledSet.has(memberUid);
+            const isPayer = (memberUid === data.payer);
 
-                // 累加債務
-                if (!debts[debtor][payer]) debts[debtor][payer] = 0;
-                debts[debtor][payer] += perPersonShare;
-            });
-        });
-
-        // 3. 顯示與「我」有關的結算介面
-        const list = document.getElementById('settlement-list');
-        list.innerHTML = '';
-        const myUid = currentUser.uid;
-
-        currentGroupMembers.forEach(member => {
-            if (member.uid === myUid) return; // 不用跟自己結算
-
-            // 計算我欠他多少
-            let iOweHim = debts[myUid][member.uid] || 0;
-            // 計算他欠我多少
-            let heOwesMe = debts[member.uid] ? (debts[member.uid][myUid] || 0) : 0;
-
-            // 互相抵銷 (Netting)
-            let netAmount = iOweHim - heOwesMe; 
-            // netAmount > 0 : 我還要給他錢
-            // netAmount < 0 : 他要給我錢 (絕對值)
-            // netAmount = 0 : 互不相欠
-
-            let cardClass = 'debt-even';
-            let text = `與 ${member.name} 互不相欠`;
-            let buttonHtml = '';
-
-            if (netAmount > 1) { // 我欠他
-                cardClass = 'debt-owe';
-                text = `你欠 ${member.name}`;
-                buttonHtml = `<button class="btn-outline" style="background:white; color:#ff5252; width:auto; margin:0;" onclick="settleUp('${member.uid}', 'pay')">還款 $${Math.round(netAmount)}</button>`;
-            } else if (netAmount < -1) { // 他欠我
-                cardClass = 'debt-get';
-                text = `${member.name} 欠你`;
-                buttonHtml = `<button class="btn-outline" style="background:white; color:#4caf50; width:auto; margin:0;" onclick="settleUp('${member.uid}', 'receive')">確認收款 $${Math.round(Math.abs(netAmount))}</button>`;
+            // 如果這個人是付款人本人，通常我們預設他已經「結清」(或是直接顯示不用還)
+            // 但為了邏輯簡單，如果 splitBy 有包含 payer，代表 payer 也要分攤自己那份
+            // 這裡我們設計：如果是付款人，顯示「付款人 (不用還)」且不能勾選
+            
+            let checkboxHtml = '';
+            if (isPayer) {
+                checkboxHtml = `<span style="font-size:12px; color:#888;">付款人 (已付)</span>`;
+            } else {
+                checkboxHtml = `<input type="checkbox" class="settle-check" 
+                    onchange="toggleMemberSettlement('${data.id}', '${memberUid}', this.checked)"
+                    ${isSettled ? 'checked' : ''}>`;
             }
 
             const div = document.createElement('div');
-            div.className = `debt-card ${cardClass}`;
+            div.className = 'settle-row';
             div.innerHTML = `
                 <div>
-                    <div style="font-size:14px; opacity:0.9;">${text}</div>
-                    <div class="debt-amount">$${Math.round(Math.abs(netAmount))}</div>
+                    <span style="font-size:16px;">${memberName}</span>
+                    <div style="font-size:12px; color:#888;">應付 $${share}</div>
                 </div>
-                ${buttonHtml}
+                <div>${checkboxHtml}</div>
             `;
-            list.appendChild(div);
+            listContainer.appendChild(div);
         });
+        
+        // 為了確保如果是付款人，資料庫裡也要算他 settled (防止卡住進不了歷史區)
+        // 這裡做一個自動修正：如果付款人在 splitBy 裡，但不在 settledMembers 裡，自動幫他加上去
+        if (data.splitBy.includes(data.payer) && !data.settledMembers.includes(data.payer)) {
+             toggleMemberSettlement(data.id, data.payer, true);
+        }
     }
 
-    // --- 🌟 結清動作 (寫入資料庫) ---
-    // targetUid: 對方ID, type: 'pay' (我還錢) 或 'receive' (我收款)
-    window.settleUp = async (targetUid, type) => {
-        if (!confirm('確定要進行結清嗎？這將會更新所有相關帳目的狀態。')) return;
-
-        const myUid = currentUser.uid;
-        // 找出需要更新的帳單 (Batch Update)
-        const batch = writeBatch(db);
-        let count = 0;
-
-        allExpensesCache.forEach(exp => {
-            const expRef = doc(db, "expenses", exp.id);
-            const settledList = exp.settledMembers || [];
-
-            // 情境 1: 我還對方錢 (我是 debtor, 對方是 payer, 我還沒還)
-            if (type === 'pay') {
-                if (exp.payer === targetUid && exp.splitBy.includes(myUid) && !settledList.includes(myUid)) {
-                    batch.update(expRef, { settledMembers: arrayUnion(myUid) });
-                    count++;
-                }
-            }
-            
-            // 情境 2: 對方還我錢 (我是 payer, 對方是 debtor, 對方還沒還)
-            if (type === 'receive') {
-                if (exp.payer === myUid && exp.splitBy.includes(targetUid) && !settledList.includes(targetUid)) {
-                    batch.update(expRef, { settledMembers: arrayUnion(targetUid) });
-                    count++;
-                }
-            }
-        });
-
-        if (count > 0) {
-            await batch.commit();
-            alert(`結清完成！更新了 ${count} 筆帳目。`);
-            // UI 會透過 onSnapshot 自動更新
+    // 將此 function 掛到 window 以便 HTML 呼叫
+    window.toggleMemberSettlement = async (docId, memberUid, isChecked) => {
+        const expRef = doc(db, "expenses", docId);
+        if (isChecked) {
+            await updateDoc(expRef, { settledMembers: arrayUnion(memberUid) });
         } else {
-            alert('沒有需要更新的帳目 (可能剛好被其他人更新了)');
+            await updateDoc(expRef, { settledMembers: arrayRemove(memberUid) });
         }
     };
 
