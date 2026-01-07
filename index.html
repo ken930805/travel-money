@@ -3,17 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>旅遊分帳 V7 (修正版)</title>
+    <title>旅遊分帳 V8 (介面優化版)</title>
     <style>
         /* --- 基礎樣式 --- */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; margin: 0; padding: 0; color: #333; }
         .container { max-width: 600px; margin: 0 auto; min-height: 100vh; background: #fff; position: relative; padding-bottom: 80px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
         
-        /* --- Header --- */
-        header { background: #2196F3; color: white; padding: 15px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
-        header h2 { margin: 0; font-size: 18px; display: flex; align-items: center; gap: 8px; }
-        .header-btn { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5); border-radius: 4px; padding: 5px 12px; color: white; font-size: 14px; cursor: pointer; text-decoration: none;}
-        .icon-btn { background: none; border: none; cursor: pointer; font-size: 16px; padding: 0 5px; }
+        /* --- Header (修正標題直立問題) --- */
+        header { 
+            background: #2196F3; 
+            color: white; 
+            padding: 15px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            position: sticky; 
+            top: 0; 
+            z-index: 100; 
+            height: 60px; /* 固定高度 */
+            box-sizing: border-box;
+        }
+        header h2 { 
+            margin: 0; 
+            font-size: 18px; 
+            display: flex; 
+            align-items: center; 
+            overflow: hidden; /* 防止溢出 */
+            flex: 1; /* 佔據剩餘空間 */
+        }
+        #title-text {
+            white-space: nowrap; /* 強制不換行 */
+            overflow: hidden;
+            text-overflow: ellipsis; /* 過長顯示 ... */
+            max-width: 200px; /* 限制最大寬度，避免擠壓按鈕 */
+        }
+        .header-btn { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5); border-radius: 4px; padding: 5px 12px; color: white; font-size: 14px; cursor: pointer; text-decoration: none; flex-shrink: 0; }
+        .icon-btn { background: none; border: none; cursor: pointer; font-size: 16px; padding: 0 8px; flex-shrink: 0; margin-left: 5px;}
         .hidden { display: none !important; }
 
         /* --- View Control --- */
@@ -31,25 +56,46 @@
         .btn-danger { background: #ffebee; border: 1px solid #ef5350; color: #ef5350; margin-top: 10px; }
         .btn-back { background: #607d8b; color: white; margin-bottom: 15px; width: auto; padding: 8px 15px; font-size: 14px;}
 
+        /* --- Group Card (新版：左右分離設計) --- */
+        .group-card-row {
+            display: flex; 
+            align-items: stretch; /* 等高 */
+            background: white; 
+            border: 1px solid #eee; 
+            border-radius: 8px; 
+            margin-bottom: 15px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
+            overflow: hidden; /* 確保圓角 */
+        }
+        .group-info-area {
+            flex: 1; /* 佔據大部分空間 */
+            padding: 15px;
+            cursor: pointer;
+            border-right: 1px solid #f0f0f0; /* 分隔線 */
+        }
+        .group-info-area:active { background-color: #f9f9f9; }
+        
+        .group-delete-area {
+            width: 50px; /* 固定寬度 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #fafafa;
+            cursor: pointer;
+            color: #ccc;
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+        .group-delete-area:hover {
+            background: #ffebee;
+            color: #ef5350;
+        }
+
         /* --- Lists --- */
         .list-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
         .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; color: white; margin-left: 5px; }
         .bg-cash { background: #4caf50; }
         .bg-card { background: #ff9800; }
-
-        /* --- Group Card Special (修正刪除按鈕樣式) --- */
-        .group-card { cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
-        .group-delete-btn { 
-            background: none; 
-            border: none; 
-            font-size: 14px; /* 字體改小 */
-            color: #ccc; /* 顏色改淡 */
-            padding: 5px 10px; /* 內距縮小 */
-            cursor: pointer; 
-            z-index: 10; 
-            transition: color 0.3s;
-        }
-        .group-delete-btn:hover { color: #ff5252; }
 
         /* --- Progress Bar --- */
         .progress-bar-bg { width: 100px; height: 6px; background: #eee; border-radius: 3px; overflow: hidden; margin-top: 5px; }
@@ -80,7 +126,7 @@
             <span id="title-text">旅費分帳</span>
             <button id="btn-edit-group-name" class="icon-btn hidden" onclick="renameGroup()">✏️</button>
         </h2>
-        <div style="display: flex; gap: 10px;">
+        <div style="display: flex; gap: 10px; align-items: center;">
             <button id="btn-settings" class="header-btn hidden">⚙️ 設定</button>
             <button id="btn-logout" class="header-btn hidden">登出</button>
         </div>
@@ -89,7 +135,7 @@
     <div id="view-login" class="view-section active">
         <div style="text-align: center; margin-top: 50px;">
             <h1>✈️</h1>
-            <h2>分帳神器 V7</h2>
+            <h2>分帳神器 V8</h2>
             <button id="btn-login" class="btn-primary">Google 登入</button>
         </div>
     </div>
@@ -224,7 +270,7 @@
 
     let currentUser = null;
     let currentGroupId = null;
-    let currentGroupName = ''; // 🌟 新增：記憶當前群組名稱
+    let currentGroupName = '';
     let currentGroupMembers = [];
     let currentDetailDocId = null; 
     let allExpensesCache = [];
@@ -251,13 +297,11 @@
         document.getElementById('btn-settings').classList.toggle('hidden', isLogin || isDash); 
         document.getElementById('btn-edit-group-name').classList.toggle('hidden', !isDash);
 
-        // 🌟 修正標題顯示邏輯
-        // 只有回到「最外層功能」時，才還原成 App 名稱
-        // 否則如果是在群組內 (Dashboard 或 Detail)，就保持群組名稱
+        // 標題顯示邏輯
         const rootViews = ['view-login', 'view-profile', 'view-groups'];
         if (rootViews.includes(viewId)) {
             document.getElementById('title-text').innerText = '旅費分帳';
-            currentGroupName = ''; // 離開群組，清空名稱
+            currentGroupName = ''; 
         } else if (currentGroupName) {
             document.getElementById('title-text').innerText = currentGroupName;
         }
@@ -332,7 +376,7 @@
         } else { alert('找不到群組'); }
     });
 
-    // --- List Groups ---
+    // --- List Groups (改進版：左右分離結構) ---
     async function loadMyGroups() {
         const list = document.getElementById('my-groups-list');
         list.innerHTML = '載入中...';
@@ -343,26 +387,25 @@
         querySnapshot.forEach((docSnap) => {
             const data = docSnap.data();
             if (data.members.some(m => m.uid === currentUser.uid)) {
-                const div = document.createElement('div');
-                div.className = 'card group-card';
-                div.onclick = () => enterGroup(docSnap.id, data.name);
-                
-                div.innerHTML = `
-                    <div>
-                        <strong>${data.name}</strong> <br> <small>ID: ${docSnap.id}</small>
-                    </div>
-                `;
+                // 建立外層容器
+                const row = document.createElement('div');
+                row.className = 'group-card-row';
 
-                const delBtn = document.createElement('button');
-                delBtn.className = 'group-delete-btn';
-                delBtn.innerText = '🗑️';
-                delBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    deleteGroup(docSnap.id, data.name);
-                };
-                
-                div.appendChild(delBtn);
-                list.appendChild(div);
+                // 左側：點擊進入群組
+                const infoArea = document.createElement('div');
+                infoArea.className = 'group-info-area';
+                infoArea.innerHTML = `<strong>${data.name}</strong> <br> <small>ID: ${docSnap.id}</small>`;
+                infoArea.onclick = () => enterGroup(docSnap.id, data.name);
+
+                // 右側：刪除按鈕
+                const deleteArea = document.createElement('div');
+                deleteArea.className = 'group-delete-area';
+                deleteArea.innerHTML = '🗑️'; // 垃圾桶圖示
+                deleteArea.onclick = () => deleteGroup(docSnap.id, data.name);
+
+                row.appendChild(infoArea);
+                row.appendChild(deleteArea);
+                list.appendChild(row);
             }
         });
     }
@@ -381,7 +424,7 @@
     // --- Enter Group ---
     function enterGroup(groupId, groupName) {
         currentGroupId = groupId;
-        currentGroupName = groupName; // 🌟 記憶名稱
+        currentGroupName = groupName;
         document.getElementById('title-text').innerText = groupName; 
         showView('view-dashboard');
         switchTab('tab-add');
@@ -390,7 +433,7 @@
             if(docSnap.exists()) {
                 const data = docSnap.data();
                 currentGroupMembers = data.members;
-                currentGroupName = data.name; // 🌟 即時更新記憶名稱
+                currentGroupName = data.name;
                 document.getElementById('title-text').innerText = data.name;
                 renderExpenseForm(currentGroupMembers);
             } else {
