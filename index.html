@@ -30,12 +30,13 @@
             align-items: center; 
             overflow: hidden; /* 防止溢出 */
             flex: 1; /* 佔據剩餘空間 */
+            min-width: 0; /* ✨ 加入這一行，防止標題消失 */
         }
         #title-text {
             white-space: nowrap; /* 強制不換行 */
             overflow: hidden;
             text-overflow: ellipsis; /* 過長顯示 ... */
-            max-width: 200px; /* 限制最大寬度，避免擠壓按鈕 */
+            flex: 1;
         }
         .header-btn { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5); border-radius: 4px; padding: 5px 12px; color: white; font-size: 14px; cursor: pointer; text-decoration: none; flex-shrink: 0; }
         .icon-btn { background: none; border: none; cursor: pointer; font-size: 16px; padding: 0 8px; flex-shrink: 0; margin-left: 5px;}
