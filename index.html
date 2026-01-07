@@ -39,7 +39,8 @@
             overflow: hidden;
             text-overflow: ellipsis; 
             display: block; /* ✅ 改回 block 比較穩定 */
-            /* 移除 flex: 1，避免在某些瀏覽器計算錯誤 */
+            flex: 1;       /* ✅ 加回這行，讓它自動佔滿剩餘空間 */
+            min-width: 0;  /* ✅ 加這行，這是 Flexbox 內文字要能出現...的關鍵 */
         }
         /* ✨ 新增這個 class 來控制右邊按鈕區塊 */
         .header-actions {
