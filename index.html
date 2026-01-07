@@ -3,26 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>旅遊分帳 V8 (介面優化版)</title>
+    <title>旅遊分帳 V8 (列表修改版)</title>
     <style>
         /* --- 基礎樣式 --- */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; margin: 0; padding: 0; color: #333; }
         .container { max-width: 600px; margin: 0 auto; min-height: 100vh; background: #fff; position: relative; padding-bottom: 80px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
         
-        /* --- Header (修正標題直立問題) --- */
+        /* --- Header --- */
         header { 
             background: #2196F3; 
             color: white; 
             padding: 15px; 
             display: flex; 
             align-items: center; 
-            /* ❌ 移除 justify-content: space-between; 改用 flex-grow 控制 */
             position: sticky; 
             top: 0; 
             z-index: 100; 
             height: 60px; 
             box-sizing: border-box;
-            overflow: hidden; /* 防止整個 Header 被撐開 */
+            overflow: hidden; 
         }
         header h2 { 
             margin: 0; 
@@ -30,27 +29,25 @@
             display: flex; 
             align-items: center; 
             overflow: hidden; 
-            flex-grow: 1; /* ✅ 讓標題佔據「剩餘」空間 */
-            min-width: 0; /* 關鍵：允許標題縮小，才不會擠出右邊按鈕 */
-            margin-right: 10px; /* 與右邊按鈕保持距離 */
+            flex-grow: 1; 
+            min-width: 0; 
+            margin-right: 10px; 
         }
         #title-text {
             white-space: nowrap; 
             overflow: hidden;
             text-overflow: ellipsis; 
-            display: block; /* ✅ 改回 block 比較穩定 */
-            flex: 1;       /* ✅ 加回這行，讓它自動佔滿剩餘空間 */
-            min-width: 0;  /* ✅ 加這行，這是 Flexbox 內文字要能出現...的關鍵 */
+            display: block; 
+            flex: 1;      
+            min-width: 0; 
         }
-        /* ✨ 新增這個 class 來控制右邊按鈕區塊 */
         .header-actions {
             display: flex; 
             gap: 10px; 
             align-items: center;
-            flex-shrink: 0; /* ⛔️ 關鍵：絕對禁止按鈕區塊被壓縮或擠出畫面 */
+            flex-shrink: 0; 
         }
         .header-btn { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5); border-radius: 4px; padding: 5px 12px; color: white; font-size: 14px; cursor: pointer; text-decoration: none; white-space: nowrap; }
-        .icon-btn { background: none; border: none; cursor: pointer; font-size: 16px; padding: 0 8px; flex-shrink: 0; margin-left: 5px;}
         .hidden { display: none !important; }
 
         /* --- View Control --- */
@@ -68,37 +65,50 @@
         .btn-danger { background: #ffebee; border: 1px solid #ef5350; color: #ef5350; margin-top: 10px; }
         .btn-back { background: #607d8b; color: white; margin-bottom: 15px; width: auto; padding: 8px 15px; font-size: 14px;}
 
-        /* --- Group Card (新版：左右分離設計) --- */
+        /* --- Group Card (新版：列表包含修改與刪除) --- */
         .group-card-row {
             display: flex; 
-            align-items: stretch; /* 等高 */
+            align-items: stretch; 
             background: white; 
             border: 1px solid #eee; 
             border-radius: 8px; 
             margin-bottom: 15px; 
             box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
-            overflow: hidden; /* 確保圓角 */
+            overflow: hidden; 
         }
         .group-info-area {
-            flex: 1; /* 佔據大部分空間 */
+            flex: 1; 
             padding: 15px;
             cursor: pointer;
-            border-right: 1px solid #f0f0f0; /* 分隔線 */
+            border-right: 1px solid #f0f0f0; 
         }
         .group-info-area:active { background-color: #f9f9f9; }
         
-        .group-delete-area {
-            width: 50px; /* 固定寬度 */
+        /* 統一的動作按鈕樣式 */
+        .group-action-btn {
+            width: 50px; 
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #fafafa;
             cursor: pointer;
-            color: #ccc;
             font-size: 18px;
             transition: all 0.2s;
+            border-left: 1px solid #fff; /* 微調分隔 */
         }
-        .group-delete-area:hover {
+        
+        /* 修改按鈕樣式 */
+        .action-edit {
+            background: #e3f2fd;
+            color: #2196F3;
+        }
+        .action-edit:hover { background: #bbdefb; }
+
+        /* 刪除按鈕樣式 */
+        .action-delete {
+            background: #fafafa;
+            color: #ccc;
+        }
+        .action-delete:hover {
             background: #ffebee;
             color: #ef5350;
         }
@@ -136,7 +146,6 @@
     <header id="app-header">
         <h2 id="page-title">
             <span id="title-text">旅費分帳</span>
-            <button id="btn-edit-group-name" class="icon-btn hidden" onclick="renameGroup()">✏️</button>
         </h2>
         <div class="header-actions">
             <button id="btn-settings" class="header-btn hidden">⚙️ 設定</button>
@@ -297,7 +306,7 @@
         showView('view-profile');
     });
 
-    // --- Navigation (修復標題卡住問題) ---
+    // --- Navigation ---
     function showView(viewId) {
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
         document.getElementById(viewId).classList.add('active');
@@ -307,7 +316,6 @@
         
         document.getElementById('btn-logout').classList.toggle('hidden', isLogin);
         document.getElementById('btn-settings').classList.toggle('hidden', isLogin || isDash); 
-        document.getElementById('btn-edit-group-name').classList.toggle('hidden', !isDash);
 
         // 標題顯示邏輯
         const rootViews = ['view-login', 'view-profile', 'view-groups'];
@@ -388,7 +396,7 @@
         } else { alert('找不到群組'); }
     });
 
-    // --- List Groups (改進版：左右分離結構) ---
+    // --- List Groups (列表包含修改與刪除功能) ---
     async function loadMyGroups() {
         const list = document.getElementById('my-groups-list');
         list.innerHTML = '載入中...';
@@ -409,18 +417,40 @@
                 infoArea.innerHTML = `<strong>${data.name}</strong> <br> <small>ID: ${docSnap.id}</small>`;
                 infoArea.onclick = () => enterGroup(docSnap.id, data.name);
 
+                // 右側：修改按鈕
+                const editArea = document.createElement('div');
+                editArea.className = 'group-action-btn action-edit';
+                editArea.innerHTML = '✏️';
+                editArea.onclick = (e) => {
+                    e.stopPropagation(); // 防止觸發進入群組
+                    renameGroup(docSnap.id, data.name);
+                };
+
                 // 右側：刪除按鈕
                 const deleteArea = document.createElement('div');
-                deleteArea.className = 'group-delete-area';
-                deleteArea.innerHTML = '🗑️'; // 垃圾桶圖示
-                deleteArea.onclick = () => deleteGroup(docSnap.id, data.name);
+                deleteArea.className = 'group-action-btn action-delete';
+                deleteArea.innerHTML = '🗑️'; 
+                deleteArea.onclick = (e) => {
+                    e.stopPropagation(); // 防止觸發進入群組
+                    deleteGroup(docSnap.id, data.name);
+                };
 
                 row.appendChild(infoArea);
+                row.appendChild(editArea);
                 row.appendChild(deleteArea);
                 list.appendChild(row);
             }
         });
     }
+
+    // --- Rename Group (主頁面用) ---
+    window.renameGroup = async (groupId, oldName) => {
+        const newName = prompt("請輸入新的群組名稱：", oldName);
+        if (newName && newName.trim() !== "") {
+            await updateDoc(doc(db, "groups", groupId), { name: newName });
+            loadMyGroups(); // 更新列表顯示
+        }
+    };
 
     window.deleteGroup = async (groupId, groupName) => {
         const confirmName = prompt(`⚠️ 危險動作！\n這將刪除整個群組，所有人的資料都會消失。\n請輸入群組名稱 "${groupName}" 以確認刪除：`);
@@ -506,14 +536,6 @@
             if(document.getElementById('tab-matrix').style.display === 'block') calculateMatrix();
         });
     }
-
-    // --- Rename Group ---
-    window.renameGroup = async () => {
-        const newName = prompt("請輸入新的群組名稱：", currentGroupName);
-        if (newName && newName.trim() !== "") {
-            await updateDoc(doc(db, "groups", currentGroupId), { name: newName });
-        }
-    };
 
     function renderExpenseForm(members) {
         const payerSelect = document.getElementById('payer-select');
