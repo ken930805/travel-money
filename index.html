@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>旅遊分帳 V6 (完全體)</title>
+    <title>旅遊分帳 V7 (修正版)</title>
     <style>
         /* --- 基礎樣式 --- */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; margin: 0; padding: 0; color: #333; }
@@ -37,10 +37,19 @@
         .bg-cash { background: #4caf50; }
         .bg-card { background: #ff9800; }
 
-        /* --- Group Card Special --- */
+        /* --- Group Card Special (修正刪除按鈕樣式) --- */
         .group-card { cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
-        .group-delete-btn { background: none; border: none; font-size: 18px; color: #999; padding: 10px; cursor: pointer; z-index: 10; }
-        .group-delete-btn:hover { color: red; }
+        .group-delete-btn { 
+            background: none; 
+            border: none; 
+            font-size: 14px; /* 字體改小 */
+            color: #ccc; /* 顏色改淡 */
+            padding: 5px 10px; /* 內距縮小 */
+            cursor: pointer; 
+            z-index: 10; 
+            transition: color 0.3s;
+        }
+        .group-delete-btn:hover { color: #ff5252; }
 
         /* --- Progress Bar --- */
         .progress-bar-bg { width: 100px; height: 6px; background: #eee; border-radius: 3px; overflow: hidden; margin-top: 5px; }
@@ -72,7 +81,7 @@
             <button id="btn-edit-group-name" class="icon-btn hidden" onclick="renameGroup()">✏️</button>
         </h2>
         <div style="display: flex; gap: 10px;">
-             <button id="btn-settings" class="header-btn hidden">⚙️ 設定</button>
+            <button id="btn-settings" class="header-btn hidden">⚙️ 設定</button>
             <button id="btn-logout" class="header-btn hidden">登出</button>
         </div>
     </header>
@@ -80,7 +89,7 @@
     <div id="view-login" class="view-section active">
         <div style="text-align: center; margin-top: 50px;">
             <h1>✈️</h1>
-            <h2>分帳神器 V6</h2>
+            <h2>分帳神器 V7</h2>
             <button id="btn-login" class="btn-primary">Google 登入</button>
         </div>
     </div>
@@ -209,13 +218,13 @@
             measurementId: "G-PHVPTW4CPL"
         };
 
-
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
 
     let currentUser = null;
     let currentGroupId = null;
+    let currentGroupName = ''; // 🌟 新增：記憶當前群組名稱
     let currentGroupMembers = [];
     let currentDetailDocId = null; 
     let allExpensesCache = [];
@@ -225,29 +234,33 @@
         if(confirm('確定要登出嗎？')) signOut(auth).then(() => location.reload());
     });
     
-    // 進入設定頁面
     document.getElementById('btn-settings').addEventListener('click', () => {
         document.getElementById('profile-name-input').value = currentUser.displayName || '';
         showView('view-profile');
     });
 
-    // --- Navigation ---
+    // --- Navigation (修復標題卡住問題) ---
     function showView(viewId) {
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
         document.getElementById(viewId).classList.add('active');
         
-        // Header 按鈕顯示控制
         const isLogin = (viewId === 'view-login');
         const isDash = (viewId === 'view-dashboard');
         
         document.getElementById('btn-logout').classList.toggle('hidden', isLogin);
-        document.getElementById('btn-settings').classList.toggle('hidden', isLogin || isDash); // 在群組內不顯示設定，保持簡潔
-        
-        // 群組更名按鈕只有在 dashboard 顯示
+        document.getElementById('btn-settings').classList.toggle('hidden', isLogin || isDash); 
         document.getElementById('btn-edit-group-name').classList.toggle('hidden', !isDash);
 
-        // 標題還原
-        if(!isDash) document.getElementById('title-text').innerText = '旅費分帳';
+        // 🌟 修正標題顯示邏輯
+        // 只有回到「最外層功能」時，才還原成 App 名稱
+        // 否則如果是在群組內 (Dashboard 或 Detail)，就保持群組名稱
+        const rootViews = ['view-login', 'view-profile', 'view-groups'];
+        if (rootViews.includes(viewId)) {
+            document.getElementById('title-text').innerText = '旅費分帳';
+            currentGroupName = ''; // 離開群組，清空名稱
+        } else if (currentGroupName) {
+            document.getElementById('title-text').innerText = currentGroupName;
+        }
 
         const bottomNav = document.querySelector('.bottom-nav');
         if (viewId === 'view-detail') bottomNav.style.display = 'none';
@@ -280,13 +293,13 @@
         } else { showView('view-login'); }
     });
 
-    // --- Save Profile (功能 1: 更改暱稱) ---
+    // --- Save Profile ---
     document.getElementById('btn-save-profile').addEventListener('click', async () => {
         const name = document.getElementById('profile-name-input').value.trim();
         if (!name) return;
         await setDoc(doc(db, "users", currentUser.uid), { displayName: name, email: currentUser.email }, { merge: true });
         
-        currentUser.displayName = name; // 更新本地
+        currentUser.displayName = name; 
         alert('暱稱更新成功！');
         
         loadMyGroups();
@@ -319,7 +332,7 @@
         } else { alert('找不到群組'); }
     });
 
-    // --- 載入群組列表 (含 功能 4: 刪除群組) ---
+    // --- List Groups ---
     async function loadMyGroups() {
         const list = document.getElementById('my-groups-list');
         list.innerHTML = '載入中...';
@@ -332,7 +345,7 @@
             if (data.members.some(m => m.uid === currentUser.uid)) {
                 const div = document.createElement('div');
                 div.className = 'card group-card';
-                div.onclick = () => enterGroup(docSnap.id, data.name); // 點擊卡片進入
+                div.onclick = () => enterGroup(docSnap.id, data.name);
                 
                 div.innerHTML = `
                     <div>
@@ -340,12 +353,11 @@
                     </div>
                 `;
 
-                // 🗑️ 刪除群組按鈕 (阻止冒泡以免觸發進入群組)
                 const delBtn = document.createElement('button');
                 delBtn.className = 'group-delete-btn';
                 delBtn.innerText = '🗑️';
                 delBtn.onclick = (e) => {
-                    e.stopPropagation(); // 關鍵：阻止點擊事件傳遞
+                    e.stopPropagation();
                     deleteGroup(docSnap.id, data.name);
                 };
                 
@@ -369,7 +381,8 @@
     // --- Enter Group ---
     function enterGroup(groupId, groupName) {
         currentGroupId = groupId;
-        document.getElementById('title-text').innerText = groupName; // 設定標題
+        currentGroupName = groupName; // 🌟 記憶名稱
+        document.getElementById('title-text').innerText = groupName; 
         showView('view-dashboard');
         switchTab('tab-add');
 
@@ -377,10 +390,10 @@
             if(docSnap.exists()) {
                 const data = docSnap.data();
                 currentGroupMembers = data.members;
-                document.getElementById('title-text').innerText = data.name; // 即時更新標題
+                currentGroupName = data.name; // 🌟 即時更新記憶名稱
+                document.getElementById('title-text').innerText = data.name;
                 renderExpenseForm(currentGroupMembers);
             } else {
-                // 如果群組被刪除了
                 alert('此群組已被刪除');
                 goBackToGroups();
             }
@@ -439,9 +452,9 @@
         });
     }
 
-    // --- 功能 2: 變更群組名稱 ---
+    // --- Rename Group ---
     window.renameGroup = async () => {
-        const newName = prompt("請輸入新的群組名稱：", document.getElementById('title-text').innerText);
+        const newName = prompt("請輸入新的群組名稱：", currentGroupName);
         if (newName && newName.trim() !== "") {
             await updateDoc(doc(db, "groups", currentGroupId), { name: newName });
         }
@@ -491,7 +504,7 @@
         alert('記帳成功！');
     });
 
-    // --- Detail View & 功能 3: 刪除帳目 ---
+    // --- Detail View ---
     window.openDetail = async (docId) => {
         currentDetailDocId = docId;
         showView('view-detail');
