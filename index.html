@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>旅遊分帳小幫手</title>
+    <style>
+        /* 簡單的手機版型 CSS */
+        body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; }
+        .hidden { display: none; }
+        .card { border: 1px solid #ccc; padding: 15px; margin-bottom: 15px; border-radius: 8px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin-top: 5px;}
+        input, select { padding: 8px; font-size: 16px; width: 100%; box-sizing: border-box; margin-bottom: 10px; }
+        .member-checkbox { display: flex; align-items: center; margin-bottom: 5px; }
+        .member-checkbox input { width: auto; margin-right: 10px; }
+    </style>
+</head>
+<body>
+
+    <h1>✈️ 旅遊分帳 Web App</h1>
+
+    <div id="login-section">
+        <p>請先登入以開始使用</p>
+        <button id="btn-login">Google 帳號登入</button>
+    </div>
+
+    <div id="dashboard-section" class="hidden">
+        <h3 id="user-greeting"></h3>
+        
+        <div class="card">
+            <h4>群組管理</h4>
+            <p>目前的群組 ID: <strong id="current-group-id">尚未加入</strong></p>
+            <hr>
+            <input type="text" id="new-group-name" placeholder="輸入新群組名稱 (例: 日本行)">
+            <button id="btn-create-group">建立新群組</button>
+            <hr>
+            <input type="text" id="join-group-id" placeholder="輸入朋友給的群組 ID">
+            <button id="btn-join-group">加入現有群組</button>
+        </div>
+
+        <div id="expense-form" class="card hidden">
+            <h4>💰 新增一筆消費</h4>
+            <label>金額</label>
+            <input type="number" id="amount" placeholder="多少錢">
+            
+            <label>項目說明</label>
+            <input type="text" id="note" placeholder="例如：午餐、車票">
+
+            <label>誰付的錢？</label>
+            <select id="payer-select"></select>
+
+            <label>要幫誰付 (分錢的人)？</label>
+            <div id="split-members-container">
+                </div>
+
+            <button id="btn-submit-expense" style="background-color: #4CAF50; color: white;">送出記帳</button>
+        </div>
+        
+        <div id="logs" class="card">
+             <h4>最近紀錄</h4>
+             <ul id="expense-list"></ul>
+        </div>
+    </div>
+
+    <script type="module">
+        // ⚠️ 請將這裡替換成你 Firebase 後台的設定 ⚠️
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, doc, getDoc, updateDoc, arrayUnion, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDQFDcA3OB0y-KZCDf9QzQLFZm8w3oVqyg",
+            authDomain: "trip-web-82474.firebaseapp.com",
+            projectId: "trip-web-82474",
+            storageBucket: "trip-web-82474.firebasestorage.app",
+            messagingSenderId: "900625161560",
+            appId: "1:900625161560:web:370f4dcb647f44fc1c992d",
+            measurementId: "G-PHVPTW4CPL"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        let currentUser = null;
+        let currentGroupId = null; // 暫存目前操作的 Group ID
+
+        // --- 1. 登入邏輯 ---
+        const btnLogin = document.getElementById('btn-login');
+        btnLogin.addEventListener('click', () => {
+            const provider = new GoogleAuthProvider();
+            signInWithPopup(auth, provider).catch(console.error);
+        });
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                document.getElementById('login-section').classList.add('hidden');
+                document.getElementById('dashboard-section').classList.remove('hidden');
+                document.getElementById('user-greeting').innerText = `哈囉，${user.displayName}`;
+                
+                // 這裡簡化處理：假設使用者最後一次加入的群組就是當前群組
+                // 實務上你應該將 currentGroupId 存在 localStorage 或讓使用者選擇
+            }
+        });
+
+        // --- 2. 建立群組 ---
+        document.getElementById('btn-create-group').addEventListener('click', async () => {
+            const name = document.getElementById('new-group-name').value;
+            if (!name) return alert('請輸入群組名稱');
+
+            try {
+                // 在 Firestore 建立群組文件
+                const docRef = await addDoc(collection(db, "groups"), {
+                    name: name,
+                    members: [{ uid: currentUser.uid, name: currentUser.displayName }] // 初始成員只有自己
+                });
+                
+                currentGroupId = docRef.id;
+                updateGroupUI();
+                alert(`群組建立成功！請把這個 ID 給朋友：\n${currentGroupId}`);
+            } catch (e) {
+                console.error("Error adding document: ", e);
+            }
+        });
+
+        // --- 3. 加入群組 ---
+        document.getElementById('btn-join-group').addEventListener('click', async () => {
+            const groupId = document.getElementById('join-group-id').value.trim();
+            if (!groupId) return alert('請輸入 ID');
+
+            const groupRef = doc(db, "groups", groupId);
+            const groupSnap = await getDoc(groupRef);
+
+            if (groupSnap.exists()) {
+                // 將自己加入成員名單
+                await updateDoc(groupRef, {
+                    members: arrayUnion({ uid: currentUser.uid, name: currentUser.displayName })
+                });
+                currentGroupId = groupId;
+                updateGroupUI();
+                alert('成功加入群組！');
+            } else {
+                alert('找不到這個群組 ID');
+            }
+        });
+
+        // --- 4. 更新介面 & 監聽成員 ---
+        function updateGroupUI() {
+            if (!currentGroupId) return;
+            document.getElementById('current-group-id').innerText = currentGroupId;
+            document.getElementById('expense-form').classList.remove('hidden');
+
+            // 監聽這個群組的變化 (如果有新朋友加入，勾選名單要自動更新)
+            onSnapshot(doc(db, "groups", currentGroupId), (doc) => {
+                const data = doc.data();
+                const members = data.members;
+                
+                const container = document.getElementById('split-members-container');
+                const payerSelect = document.getElementById('payer-select');
+                
+                container.innerHTML = '';
+                payerSelect.innerHTML = '';
+
+                members.forEach(member => {
+                    // 建立付款人下拉選單
+                    const option = document.createElement('option');
+                    option.value = member.uid;
+                    option.innerText = member.name;
+                    if(member.uid === currentUser.uid) option.selected = true; // 預設選自己
+                    payerSelect.appendChild(option);
+
+                    // 建立分帳人勾選框
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'member-checkbox';
+                    wrapper.innerHTML = `
+                        <input type="checkbox" value="${member.uid}" checked id="chk-${member.uid}">
+                        <label for="chk-${member.uid}">${member.name}</label>
+                    `;
+                    container.appendChild(wrapper);
+                });
+            });
+
+            // 監聽消費紀錄
+            loadExpenses();
+        }
+
+        // --- 5. 送出記帳 ---
+        document.getElementById('btn-submit-expense').addEventListener('click', async () => {
+            const amount = parseFloat(document.getElementById('amount').value);
+            const note = document.getElementById('note').value;
+            const payerId = document.getElementById('payer-select').value;
+            
+            // 找出被勾選的人
+            const checkboxes = document.querySelectorAll('#split-members-container input[type="checkbox"]:checked');
+            const splitMembers = Array.from(checkboxes).map(cb => cb.value);
+
+            if (!amount || splitMembers.length === 0) return alert('請輸入金額並至少選擇一人分攤');
+
+            await addDoc(collection(db, "expenses"), {
+                groupId: currentGroupId,
+                payer: payerId,
+                amount: amount,
+                note: note,
+                splitBy: splitMembers,
+                timestamp: new Date()
+            });
+
+            // 清空表單
+            document.getElementById('amount').value = '';
+            document.getElementById('note').value = '';
+            alert('記帳成功！');
+        });
+
+        function loadExpenses() {
+             const q = query(collection(db, "expenses"), where("groupId", "==", currentGroupId));
+             onSnapshot(q, (snapshot) => {
+                const list = document.getElementById('expense-list');
+                list.innerHTML = '';
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const li = document.createElement('li');
+                    li.innerText = `${data.note}: ${data.amount}元 (由...支付)`; // 這裡可以再優化顯示名字
+                    list.appendChild(li);
+                });
+             });
+        }
+    </script>
+</body>
+</html>
